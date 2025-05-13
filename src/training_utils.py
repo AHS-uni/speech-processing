@@ -140,15 +140,18 @@ def run_epoch(
             target_lens = batch["token_lengths"].cpu()
 
             for pred_ids, tgt_ids, tgt_len in zip(preds, targets, target_lens):
-                # Collapse CTC output: remove repeats and blanks
+                if tgt_len == 0:
+                    continue  # Skip invalid example
+
                 hyp = []
                 prev = None
                 for t in pred_ids.tolist():
                     if t != 0 and t != prev:
                         hyp.append(t)
                         prev = t
-                        hyp_str = decode_fn(hyp)
-                        ref_str = decode_fn(tgt_ids[:tgt_len].tolist())
+
+                hyp_str = decode_fn(hyp)
+                ref_str = decode_fn(tgt_ids[:tgt_len].tolist())
 
                 hyps.append(hyp_str)
                 refs.append(ref_str)
