@@ -139,7 +139,14 @@ def run_epoch(
             targets = batch["tokens"].cpu()
             target_lens = batch["token_lengths"].cpu()
 
-            for pred_ids, tgt_ids, tgt_len in zip(preds, targets, target_lens):
+            for i, (pred_ids, tgt_ids, tgt_len) in enumerate(
+                zip(preds, targets, target_lens)
+            ):
+                print(f"\n--- Example {i} ---")
+                print(f"Raw prediction IDs: {pred_ids.tolist()}")
+                print(f"Target token IDs: {tgt_ids[:tgt_len].tolist()}")
+                print(f"Target length: {tgt_len}")
+
                 hyp = []
                 prev = None
                 for t in pred_ids.tolist():
@@ -147,13 +154,20 @@ def run_epoch(
                         hyp.append(t)
                     prev = t
 
-                # Ensure hyp_str and ref_str are always defined
-                hyp_str = decode_fn(hyp) if hyp else ""
-                ref_str = decode_fn(tgt_ids[:tgt_len].tolist()) if tgt_len > 0 else ""
+                print(f"Decoded token IDs after collapsing: {hyp}")
 
-                if ref_str:
-                    hyps.append(hyp_str)
-                    refs.append(ref_str)
+                try:
+                    hyp_str = decode_fn(hyp)
+                    ref_str = decode_fn(tgt_ids[:tgt_len].tolist())
+                    print(f"Decoded hypothesis: {repr(hyp_str)}")
+                    print(f"Decoded reference: {repr(ref_str)}")
+                except Exception as e:
+                    print(f"🚨 decode_fn error: {e}")
+                    hyp_str = "<DECODE ERROR>"
+                    ref_str = "<DECODE ERROR>"
+
+                hyps.append(hyp_str)
+                refs.append(ref_str)
 
     num_batches = len(loader)
     avg_ctc = total_ctc / num_batches
