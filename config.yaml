@@ -30,12 +30,6 @@ splits:
   val_ratio:        0.1
   test_ratio:       0.1
 
-# DataLoader & Training Debug
-batch_size:         32
-debug_batch_size:   8
-debug_train_size:   500
-debug_val_size:     100
-
 # Model Hyperparameters
 model:
   d_model: 256
@@ -47,7 +41,8 @@ model:
 
 # Optimization & Loss
 training:
+  batch_size: 16
   learning_rate: 3e-4
   weight_decay: 1e-5
   alpha: 0.5
-  num_epochs: 20
+  num_epochs: 100
