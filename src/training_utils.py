@@ -140,9 +140,6 @@ def run_epoch(
             target_lens = batch["token_lengths"].cpu()
 
             for pred_ids, tgt_ids, tgt_len in zip(preds, targets, target_lens):
-                if tgt_len == 0:
-                    continue  # Skip invalid example
-
                 hyp = []
                 prev = None
                 for t in pred_ids.tolist():
@@ -150,11 +147,13 @@ def run_epoch(
                         hyp.append(t)
                         prev = t
 
-                hyp_str = decode_fn(hyp)
-                ref_str = decode_fn(tgt_ids[:tgt_len].tolist())
+                # Ensure hyp_str and ref_str are always defined
+                hyp_str = decode_fn(hyp) if hyp else ""
+                ref_str = decode_fn(tgt_ids[:tgt_len].tolist()) if tgt_len > 0 else ""
 
-                hyps.append(hyp_str)
-                refs.append(ref_str)
+                if ref_str:
+                    hyps.append(hyp_str)
+                    refs.append(ref_str)
 
     num_batches = len(loader)
     avg_ctc = total_ctc / num_batches
