@@ -14,3 +14,5 @@ character_coverage: 1.0
 # DATASET SPLITS
 train_ratio: 0.8
 val_ratio: 0.1
+# MODEL
+batch_size: 32
