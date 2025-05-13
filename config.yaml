@@ -1,18 +1,53 @@
-# DIRECTORIES
+# Directories
 dataset_dir: data/LJSpeech
 splits_dir: data/splits
 preprocessed_dir: data/preprocessed
 stats_dir: data/stats
 tokenizer_dir: data/preprocessed/tokenizer
-# AUDIO PROCESSING
-n_fft: 1024
-hop_length: 256
-n_mels: 80
-# TOKENIZATION
-vocab_size: 1000
-character_coverage: 1.0
-# DATASET SPLITS
-train_ratio: 0.8
-val_ratio: 0.1
-# MODEL
-batch_size: 32
+checkpoint_dir: checkpoints
+
+# Random Seed
+random_seed: 61
+
+# Workers
+num_workers: 8
+
+# Audio Preprocessing
+audio:
+  n_fft: 1024
+  hop_length: 256
+  n_mels: 80
+
+# Tokenization
+tokenization:
+  vocab_size: 1000
+  character_coverage: 1.0
+  model_type: bpe
+
+# Dataset Splits
+splits:
+  train_ratio:      0.8
+  val_ratio:        0.1
+  test_ratio:       0.1
+
+# DataLoader & Training Debug
+batch_size:         32
+debug_batch_size:   8
+debug_train_size:   500
+debug_val_size:     100
+
+# Model Hyperparameters
+model:
+  d_model: 256
+  nhead: 4
+  num_encoder_layers: 3
+  num_decoder_layers: 3
+  dim_feedforward: 512
+  dropout: 0.1
+
+# Optimization & Loss
+training:
+  learning_rate: 3e-4
+  weight_decay: 1e-5
+  alpha: 0.5
+  num_epochs: 20
