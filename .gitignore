@@ -1,11 +1,11 @@
 # ─── Data directories ─────────────────────────────────────────────────────────
-LJSpeech/
+data/LJSpeech/
 
 # ─── Jupyter Notebook ─────────────────────────────────────────────────────────
-.ipynb_checkpoints/
+**/.ipynb_checkpoints/
 
 # ─── Python bytecode & caches ────────────────────────────────────────────────
-__pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
