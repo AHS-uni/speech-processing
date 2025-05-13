@@ -2,6 +2,7 @@
 data/LJSpeech/
 
 # ─── Jupyter Notebook ─────────────────────────────────────────────────────────
+.ipynb_checkpoints/
 **/.ipynb_checkpoints/
 
 # ─── Python bytecode & caches ────────────────────────────────────────────────
