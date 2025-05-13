@@ -145,7 +145,7 @@ def run_epoch(
                 for t in pred_ids.tolist():
                     if t != 0 and t != prev:
                         hyp.append(t)
-                        prev = t
+                    prev = t
 
                 # Ensure hyp_str and ref_str are always defined
                 hyp_str = decode_fn(hyp) if hyp else ""
