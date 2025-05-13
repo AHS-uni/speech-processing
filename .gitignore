@@ -1,1 +1,23 @@
-/LJSpeech
+# ─── Data directories ─────────────────────────────────────────────────────────
+LJSpeech/                       # raw/downloaded speech data
+
+# ─── Jupyter Notebook ─────────────────────────────────────────────────────────
+.ipynb_checkpoints/             # internal notebook backups
+
+# ─── Python bytecode & caches ────────────────────────────────────────────────
+__pycache__/                    # Python 3 cache dirs
+*.py[cod]                       # compiled bytecode
+*$py.class                      # Jython bytecode
+.pytest_cache/                  # pytest cache
+.mypy_cache/                    # mypy type‐checker cache
+.cache/                         # general cache dir
+
+# ─── Virtual environments & packaging ─────────────────────────────────────────
+.venv/                          # Poetry / venv environments
+venv/                           # other venv conventions
+env/                            # alternate venv
+ENV/
+build/                          # build directories
+dist/                           # distribution packages
+*.egg-info/                     # setuptools metadata
+.eggs/                          # eggs
