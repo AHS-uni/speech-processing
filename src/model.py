@@ -51,6 +51,8 @@ class HybridASR(nn.Module):
             nn.ReLU(),
         )
 
+        self.subsample_rate = self.subsampler[0].stride[1]
+
         # Transformer encoder
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=d_model,
