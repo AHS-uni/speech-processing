@@ -1,5 +1,16 @@
+# DIRECTORIES
 dataset_dir: data/LJSpeech
 splits_dir: data/splits
 preprocessed_dir: data/preprocessed
 stats_dir: data/stats
 tokenizer_dir: data/preprocessed/tokenizer
+# AUDIO PROCESSING
+n_fft: 1024
+hop_length: 256
+n_mels: 80
+# TOKENIZATION
+vocab_size: 1000
+character_coverage: 1.0
+# DATASET SPLITS
+train_ratio: 0.8
+val_ratio: 0.1
