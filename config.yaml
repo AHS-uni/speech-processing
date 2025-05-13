@@ -1,0 +1,5 @@
+dataset_dir: data/LJSpeech
+splits_dir: data/splits
+preprocessed_dir: data/preprocessed
+stats_dir: data/stats
+tokenizer_dir: data/preprocessed/tokenizer
