@@ -46,3 +46,26 @@ class LogMelSpectrogram:
         mel_spec = self.mel(waveform)  # [1, n_mels, T]
         log_mel = self.db(mel_spec)  # [1, n_mels, T]
         return log_mel.squeeze(0)  # [n_mels, T]
+
+
+class SpecAugment:
+    """
+    Apply on-the-fly SpecAugment:
+    - Random frequency masking
+    - Random time masking
+    """
+
+    def __init__(self, freq_mask_param: int = 15, time_mask_param: int = 50):
+        self.freq_mask_param = freq_mask_param
+        self.time_mask_param = time_mask_param
+
+    def __call__(self, spec: torch.Tensor) -> torch.Tensor:
+        # spec: [1, n_mels, T] or [n_mels, T]
+        if spec.dim() == 2:
+            spec = spec.unsqueeze(0)
+            _, n_mels, T = spec.shape
+            f = torch.randint(0, self.freq_mask_param, (1,)).item()
+            t = torch.randint(0, self.time_mask_param, (1,)).item()
+            spec[:, :f, :] = 0
+            spec[:, :, :t] = 0
+        return spec.squeeze(0)

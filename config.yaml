@@ -42,7 +42,7 @@ training:
   weight_decay: 1e-5
   alpha_start: 0.3
   alpha_end: 0.05
-  num_epochs: 20
+  num_epochs: 60
   scheduler:
     type: cosine
     T_max: ${training.num_epochs}

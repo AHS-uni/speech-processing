@@ -6,7 +6,7 @@ This module provides:
 - run_epoch: Run one epoch of training or validation, returning losses + WER/CER.
 """
 
-from typing import Callable, Optional, List
+from typing import Callable, Optional, List, Tuple, Any
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -84,26 +84,31 @@ def run_epoch(
     device: torch.device,
     optimizer: Optional[torch.optim.Optimizer] = None,
     train: bool = True,
-) -> tuple[float, float, float, float, float]:
+    ctc_decoder: Optional[Any] = None,
+    beam_width: int = 10,
+) -> Tuple[float, float, float, float, float]:
     """
-    Run one epoch of training or evaluation.
+    Run one epoch of training or evaluation, with optional mixed precision and beam search.
 
     Args:
-        model: HybridASR model.
-        loader: DataLoader providing batches.
+        model: ASR model.
+        loader: DataLoader for data.
         ctc_loss_fn: CTC loss function.
-        ce_loss_fn: Cross-entropy loss function.
-        decode_fn: Callable to decode predicted token IDs into text.
-        alpha: Weight of CTC loss in combined loss.
-        device: Computation device (e.g., 'cuda').
-        optimizer: Optimizer to update model (required if train=True).
-        train: Whether to run in training mode.
+        ce_loss_fn: CrossEntropy loss function.
+        decode_fn: function mapping token ID list to string.
+        alpha: CTC weight.
+        device: computation device.
+        optimizer: optimizer for training.
+        train: True for training, False for eval.
+        use_amp: enable automatic mixed precision.
+        ctc_decoder: optional pyctcdecode decoder for beam search.
+        beam_width: beam width if beam search is used.
 
     Returns:
-        Average CTC loss, CE loss, combined loss, WER, CER for the epoch.
+        Tuple of (avg_ctc, avg_ce, avg_combined, wer, cer).
     """
     if train and optimizer is None:
-        raise ValueError("Optimizer required in training mode")
+        raise ValueError("Optimizer required when train=True")
 
     model.train() if train else model.eval()
 
@@ -112,48 +117,54 @@ def run_epoch(
 
     with torch.set_grad_enabled(train):
         for batch in loader:
-            # Ensure required keys are present
-            if not all(
-                k in batch for k in ("specs", "spec_lengths", "tokens", "token_lengths")
-            ):
-                continue  # skip incomplete batches
+            # zero grads if training
+            if train:
+                optimizer.zero_grad()
 
-            # Forward + loss
+            # compute losses and logits
             ctc_loss, ce_loss, combined_loss, ctc_logits, _ = compute_batch_loss(
                 batch, model, ctc_loss_fn, ce_loss_fn, alpha, device
             )
 
-            # Backpropagation
             if train:
-                optimizer.zero_grad()
                 combined_loss.backward()
                 optimizer.step()
 
-            # Accumulate losses
             total_ctc += ctc_loss.item()
             total_ce += ce_loss.item()
             total_combined += combined_loss.item()
 
-            # Decode predictions
-            preds = ctc_logits.argmax(dim=-1).transpose(0, 1)  # [B, T']
-            targets = batch["tokens"].cpu()
-            target_lens = batch["token_lengths"].cpu()
+            # prepare for decoding
+            log_probs = (
+                torch.log_softmax(ctc_logits, dim=-1).cpu().numpy()
+            )  # [T', B, C]
+            batch_size = log_probs.shape[1]
 
-            for pred_ids, tgt_ids, tgt_len in zip(preds, targets, target_lens):
-                hyp = []
-                prev = None
-                for t in pred_ids.tolist():
-                    if t != 0 and t != prev:
-                        hyp.append(t)
-                    prev = t
+            for b in range(batch_size):
+                # reference
+                tgt_len = int(batch["token_lengths"][b])
+                ref_ids = batch["tokens"][b].cpu().tolist()[:tgt_len]
+                ref_str = decode_fn(ref_ids)
+                if not ref_str:
+                    continue
 
-                # Ensure hyp_str and ref_str are always defined
-                hyp_str = decode_fn(hyp) if hyp else ""
-                ref_str = decode_fn(tgt_ids[:tgt_len].tolist()) if tgt_len > 0 else ""
+                # hypothesis
+                if ctc_decoder is not None:
+                    beams = ctc_decoder.decode_beams(
+                        log_probs[:, b, :], beam_width=beam_width
+                    )
+                    hyp_str = beams[0][0]
+                else:
+                    seq = torch.from_numpy(log_probs[:, b, :]).argmax(dim=-1).tolist()
+                    hyp_ids, prev = [], 0
+                    for t in seq:
+                        if t != 0 and t != prev:
+                            hyp_ids.append(t)
+                            prev = t
+                            hyp_str = decode_fn(hyp_ids)
 
-                if ref_str:
-                    hyps.append(hyp_str)
-                    refs.append(ref_str)
+                hyps.append(hyp_str)
+                refs.append(ref_str)
 
     num_batches = len(loader)
     avg_ctc = total_ctc / num_batches
@@ -161,5 +172,4 @@ def run_epoch(
     avg_combined = total_combined / num_batches
     wer_score = compute_wer(refs, hyps)
     cer_score = compute_cer(refs, hyps)
-
     return avg_ctc, avg_ce, avg_combined, wer_score, cer_score
