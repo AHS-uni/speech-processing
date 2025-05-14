@@ -117,11 +117,9 @@ def run_epoch(
 
     with torch.set_grad_enabled(train):
         for batch in loader:
-            # zero grads if training
             if train:
                 optimizer.zero_grad()
 
-            # compute losses and logits
             ctc_loss, ce_loss, combined_loss, ctc_logits, _ = compute_batch_loss(
                 batch, model, ctc_loss_fn, ce_loss_fn, alpha, device
             )
@@ -134,9 +132,9 @@ def run_epoch(
             total_ce += ce_loss.item()
             total_combined += combined_loss.item()
 
-            # prepare for decoding
+            # Detach before numpy
             log_probs = (
-                torch.log_softmax(ctc_logits, dim=-1).cpu().numpy()
+                torch.log_softmax(ctc_logits, dim=-1).detach().cpu().numpy()
             )  # [T', B, C]
             batch_size = log_probs.shape[1]
 
@@ -160,8 +158,8 @@ def run_epoch(
                     for t in seq:
                         if t != 0 and t != prev:
                             hyp_ids.append(t)
-                            prev = t
-                            hyp_str = decode_fn(hyp_ids)
+                        prev = t
+                    hyp_str = decode_fn(hyp_ids)
 
                 hyps.append(hyp_str)
                 refs.append(ref_str)
