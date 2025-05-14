@@ -65,7 +65,6 @@ class LJSpeechDataset(Dataset):
     Args:
         split (str): One of {'train','val','test'} indicating which split to load.
         preprocessed_dir (str): Directory containing {split}_data.pt bundles.
-        splits_dir (str): Directory containing {split}_idx.json files (optional).
         transform (callable, optional): A function to apply to each spectrogram.
     """
 
@@ -73,25 +72,13 @@ class LJSpeechDataset(Dataset):
         self,
         split: str,
         preprocessed_dir: str,
-        splits_dir: str = None,
         transform: callable = None,
     ):
         self.split = split
         self.transform = transform
 
-        if splits_dir:
-            idx_path = os.path.join(splits_dir, f"{split}_idx.json")
-            with open(idx_path, "r") as f:
-                self.indices = set(json.load(f))
-        else:
-            self.indices = None
-
         bundle_path = os.path.join(preprocessed_dir, f"{split}_data.pt")
         self.bundle = torch.load(bundle_path)
-
-        # If splits_dir provided, filter bundle by indices
-        if self.indices is not None:
-            self.bundle = [self.bundle[i] for i in self.indices]
 
     def __len__(self) -> int:
         return len(self.bundle)
@@ -105,7 +92,7 @@ class LJSpeechDataset(Dataset):
         if self.transform is not None:
             spec = self.transform(spec)
 
-        # Specs need shape [1, n_mels, T] for conv input
+        # Specs need shape [1, n_mels, T]
         specs = spec.unsqueeze(0)
 
         # Lengths
@@ -114,7 +101,7 @@ class LJSpeechDataset(Dataset):
 
         return {
             "specs": specs,  # [1, n_mels, T]
-            "spec_lengths": torch.tensor(spec_len, dtype=torch.long),
+            "spec_lengths": torch.tensor(spec_len),  # scalar
             "tokens": tokens.long(),  # [L]
-            "token_lengths": torch.tensor(token_len, dtype=torch.long),
+            "token_lengths": torch.tensor(token_len),  # scalar
         }
