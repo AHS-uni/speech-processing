@@ -57,49 +57,64 @@ class LJSpeechDataset(Dataset):
     PyTorch Dataset for preprocessed LJSpeech ASR data.
 
     Each item is a dict with:
-        - 'spec': Tensor [n_mels, T]
+        - 'specs': FloatTensor [1, n_mels, T]
+        - 'spec_lengths': LongTensor [1]
         - 'tokens': LongTensor [L]
+        - 'token_lengths': LongTensor [1]
 
     Args:
         split (str): One of {'train','val','test'} indicating which split to load.
-        cfg (dict): Configuration dict with keys:
-            - 'preprocessed_dir': base dir for precomputed .pt bundles
-            - 'splits_dir': dir containing {split}_idx.json files
+        preprocessed_dir (str): Directory containing {split}_data.pt bundles.
+        splits_dir (str): Directory containing {split}_idx.json files (optional).
+        transform (callable, optional): A function to apply to each spectrogram.
     """
 
-    def __init__(self, split: str, cfg: dict):
+    def __init__(
+        self,
+        split: str,
+        preprocessed_dir: str,
+        splits_dir: str = None,
+        transform: callable = None,
+    ):
         self.split = split
-        self.cfg = cfg
-        splits_dir = cfg["splits_dir"]
-        preproc_dir = cfg["preprocessed_dir"]
-        # load indices for this split
-        idx_path = os.path.join(splits_dir, f"{split}_idx.json")
-        with open(idx_path, "r") as f:
-            self.indices = json.load(f)
-            # load precomputed bundle: list of {'spec','tokens'}
-        bundle_path = os.path.join(preproc_dir, f"{split}_data.pt")
+        self.transform = transform
+
+        if splits_dir:
+            idx_path = os.path.join(splits_dir, f"{split}_idx.json")
+            with open(idx_path, "r") as f:
+                self.indices = set(json.load(f))
+        else:
+            self.indices = None
+
+        bundle_path = os.path.join(preprocessed_dir, f"{split}_data.pt")
         self.bundle = torch.load(bundle_path)
 
-    def __len__(self):
-        """Return number of samples in the split."""
+        # If splits_dir provided, filter bundle by indices
+        if self.indices is not None:
+            self.bundle = [self.bundle[i] for i in self.indices]
+
+    def __len__(self) -> int:
         return len(self.bundle)
 
-    def __getitem__(self, idx):
-        """
-        Fetch one sample by index.
-
-        Args:
-            idx (int): index in [0, len(self)).
-
-        Returns:
-            tuple: (spec, tokens) where
-                - spec: Tensor [n_mels, T]
-                - tokens: LongTensor [L]
-        """
+    def __getitem__(self, idx: int) -> dict:
         entry = self.bundle[idx]
-        spec = entry["spec"]
-        tokens = entry["tokens"]
-        # ensure correct dtype
-        if not isinstance(tokens, torch.LongTensor):
-            tokens = tokens.long()
-        return spec, tokens
+        spec = entry["spec"]  # [n_mels, T]
+        tokens = entry["tokens"]  # LongTensor [L]
+
+        # Optional augmentation / transform
+        if self.transform is not None:
+            spec = self.transform(spec)
+
+        # Specs need shape [1, n_mels, T] for conv input
+        specs = spec.unsqueeze(0)
+
+        # Lengths
+        spec_len = specs.shape[-1]
+        token_len = tokens.shape[0]
+
+        return {
+            "specs": specs,  # [1, n_mels, T]
+            "spec_lengths": torch.tensor(spec_len, dtype=torch.long),
+            "tokens": tokens.long(),  # [L]
+            "token_lengths": torch.tensor(token_len, dtype=torch.long),
+        }
