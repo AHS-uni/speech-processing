@@ -15,39 +15,37 @@ from torch.nn.utils.rnn import pad_sequence
 
 def collate_fn(batch):
     """
-    Batch and pad spectrograms and token sequences.
-
-    Args:
-        batch (list of tuples): [(spec, tokens), …] where
-            spec   is Tensor [n_mels, T_i]
-            tokens is LongTensor [L_i]
-
-    Returns:
-        dict:
-            specs         Tensor [B, 1, n_mels, T_max]
-            spec_lengths  LongTensor [B]
-            tokens        LongTensor [B, L_max]
-            token_lengths LongTensor [B]
+    Collate function for LJSpeechDataset items (dicts).
+    Batch is a list of dicts with keys:
+      - 'specs': Tensor [1, n_mels, T]
+      - 'spec_lengths': scalar Tensor
+      - 'tokens': LongTensor [L]
+      - 'token_lengths': scalar Tensor
+    Returns a dict of batched tensors:
+      - 'specs': FloatTensor [B, 1, n_mels, T_max]
+      - 'spec_lengths': LongTensor [B]
+      - 'tokens': LongTensor [B, L_max]
+      - 'token_lengths': LongTensor [B]
     """
-    specs, tokens = zip(*batch)
+    specs = [
+        item["specs"].squeeze(0).transpose(0, 1) for item in batch
+    ]  # list of [T, n_mels]
+    spec_lengths = torch.tensor([s.shape[0] for s in specs], dtype=torch.long)
+    # pad along time dimension (dim=0)
+    padded_specs = pad_sequence(specs, batch_first=True)  # [B, T_max, n_mels]
+    # restore shape [B,1,n_mels,T_max]
+    padded_specs = padded_specs.transpose(1, 2).unsqueeze(1)
 
-    # ——— Token padding ———
-    token_lengths = torch.tensor([t.numel() for t in tokens], dtype=torch.long)
-    tokens_padded = pad_sequence(list(tokens), batch_first=True, padding_value=0)
-
-    # ——— Spectrogram padding ———
-    # Transpose to make time the first dim: [n_mels, T] → [T, n_mels]
-    specs_t = [s.transpose(0, 1) for s in specs]
-    spec_lengths = torch.tensor([t.shape[0] for t in specs_t], dtype=torch.long)
-    # Pad on the time axis (now dim=0)
-    specs_padded = pad_sequence(specs_t, batch_first=True, padding_value=0.0)
-    # Restore shape to [batch, 1, n_mels, T_max]
-    specs_padded = specs_padded.permute(0, 2, 1).unsqueeze(1)
+    tokens = [item["tokens"] for item in batch]
+    token_lengths = torch.tensor([t.shape[0] for t in tokens], dtype=torch.long)
+    padded_tokens = pad_sequence(
+        tokens, batch_first=True, padding_value=0
+    )  # [B, L_max]
 
     return {
-        "specs": specs_padded,
+        "specs": padded_specs,
         "spec_lengths": spec_lengths,
-        "tokens": tokens_padded,
+        "tokens": padded_tokens,
         "token_lengths": token_lengths,
     }
 
